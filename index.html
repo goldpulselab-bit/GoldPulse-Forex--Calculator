@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101722"><title>GoldPulse Forex Calculator</title>
+<style>
+:root{color-scheme:dark;--bg:#0b111a;--panel:#141e2b;--panel2:#1a2736;--line:#2a394b;--gold:#e6b84f;--text:#f2f5f8;--muted:#9eacbb;--green:#35c49a;--red:#f07878}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -20%,#23364a 0,#0b111a 55%);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif;padding:18px 13px 38px}
+main{max-width:680px;margin:auto}.brand{display:flex;align-items:center;gap:11px;margin:6px 0 18px}.logo{width:42px;height:42px;border-radius:13px;background:linear-gradient(145deg,#f5d27a,#b17b1c);display:grid;place-items:center;color:#101722;font-weight:900;font-size:19px}.brand b{display:block;letter-spacing:.08em;font-size:14px}.brand small{color:var(--muted);font-size:11px;letter-spacing:.16em}
+h1{font-size:24px;margin:0 0 5px}.sub{color:var(--muted);margin:0 0 18px;font-size:13px}
+.card{background:linear-gradient(150deg,#172333,#111a26);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 10px 25px #0003}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);margin:0 0 14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{min-width:0}.field.full{grid-column:1/-1}label{display:block;color:var(--muted);font-size:12px;margin:0 0 6px}
+input,select{width:100%;min-width:0;background:#0c1520;border:1px solid #34465b;border-radius:11px;padding:13px 11px;color:var(--text);font:inherit;outline:none}input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 2px #e6b84f22}
+.segment{display:flex;gap:8px}.segment button{flex:1;border:1px solid var(--line);border-radius:10px;background:#0c1520;color:var(--muted);padding:11px;font-weight:700}.segment button.active{background:#3a301d;border-color:var(--gold);color:var(--gold)}
+.hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.45}
+.results{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#0c1520;border:1px solid var(--line);border-radius:13px;padding:13px}.metric small{display:block;color:var(--muted);font-size:11px;margin-bottom:7px}.metric strong{font-size:21px;font-variant-numeric:tabular-nums}.metric.gold strong{color:var(--gold)}.metric.loss strong{color:var(--red)}.metric.profit strong{color:var(--green)}
+.status{padding:11px 12px;border-radius:11px;background:#182737;color:var(--muted);font-size:12px;line-height:1.45;margin-top:12px}.status.warn{background:#3a2024;color:#ffc0c0}.status.ok{background:#12342f;color:#a7f0d9}
+.hidden{display:none!important}.note{font-size:11px;line-height:1.5;color:var(--muted);margin:14px 3px}.footer{text-align:center;color:#758395;font-size:11px;margin-top:20px}
+@media(max-width:390px){body{padding:12px 10px}.card{padding:13px}.grid{gap:9px}.metric strong{font-size:18px}}
+</style></head>
+<body><main>
+<div class="brand"><div class="logo">GP</div><div><b>GOLDPULSE LAB</b><small>TRADING TOOLS</small></div></div>
+<h1>Forex Calculator</h1><p class="sub">Calcolo del lotto, rischio, profitto e margine stimato.</p>
+<section class="card"><h2>1 · Strumento</h2><div class="grid">
+<div class="field"><label>Mercato</label><select id="market"><option value="forex">Forex</option><option value="index">Indici</option><option value="commodity">Materie prime</option></select></div>
+<div class="field"><label>Strumento</label><select id="symbol"></select></div>
+<div class="field full hidden" id="searchWrap"><label>Cerca strumento</label><input id="search" placeholder="Scrivi per filtrare…"></div>
+<div class="field full"><label>Direzione</label><div class="segment"><button type="button" id="buy" class="active">BUY</button><button type="button" id="sell">SELL</button></div></div>
+</div></section>
+<section class="card"><h2>2 · Parametri conto e trade</h2><div class="grid">
+<div class="field"><label>Saldo conto (€)</label><input id="balance" inputmode="decimal" value="1000"></div>
+<div class="field"><label>Rischio desiderato (%)</label><input id="risk" inputmode="decimal" value="1"></div>
+<div class="field"><label>Prezzo ingresso</label><input id="entry" inputmode="decimal" placeholder="Es. 1,08500"></div>
+<div class="field"><label>Stop Loss</label><input id="sl" inputmode="decimal" placeholder="Prezzo SL"></div>
+<div class="field"><label>Take Profit</label><input id="tp" inputmode="decimal" placeholder="Prezzo TP"></div>
+</div><div class="hint">Usa i prezzi esatti mostrati dalla tua piattaforma. Il calcolo si aggiorna mentre inserisci i dati.</div></section>
+<section class="card"><h2>3 · Dimensione posizione</h2><div class="segment"><button type="button" id="auto" class="active">Lotto automatico</button><button type="button" id="manual">Lotto personalizzato</button></div>
+<div class="grid" style="margin-top:12px"><div class="field full hidden" id="manualWrap"><label>Inserisci lotto (minimo 0,01)</label><input id="customLot" inputmode="decimal" value="0,01"></div>
+<div class="field full hidden" id="conversionWrap"><label>Conversione valuta quotata → EUR</label><input id="conversion" inputmode="decimal" placeholder="Cambio aggiornato automaticamente"><div class="hint">Se il cambio automatico non è disponibile, inserisci qui il valore di 1 unità della valuta quotata espresso in EUR.</div></div>
+<div class="field full hidden" id="cfdWrap"><label>Valore monetario di 1 punto per 1 lotto (€)</label><input id="pointValue" inputmode="decimal" placeholder="Inserisci il valore indicato nelle specifiche ActivTrades"><div class="hint">Per indici e materie prime il valore del punto dipende dal singolo CFD e dal tipo di contratto: non viene inventato.</div></div>
+</div><div class="hint">Leva impostata nel calcolatore: <b>1:30</b>. È un'ipotesi di calcolo e non garantisce che coincida con la leva applicata al tuo conto ActivTrades.</div></section>
+<section class="card"><h2>4 · Risultati</h2><div class="results">
+<div class="metric gold"><small>Lotto calcolato</small><strong id="outLot">—</strong></div>
+<div class="metric loss"><small>Perdita stimata allo SL</small><strong id="outLoss">—</strong></div>
+<div class="metric profit"><small>Profitto stimato al TP</small><strong id="outProfit">—</strong></div>
+<div class="metric"><small>Rischio effettivo</small><strong id="outRisk">—</strong></div>
+<div class="metric"><small>Rapporto rischio / rendimento</small><strong id="outRR">—</strong></div>
+<div class="metric"><small>Margine stimato</small><strong id="outMargin">—</strong></div>
+</div><div id="status" class="status">Inserisci ingresso, Stop Loss e Take Profit per calcolare i risultati.</div></section>
+<p class="note">Strumento di supporto al calcolo, non collegato al conto ActivTrades e non esegue ordini. I risultati non includono spread, commissioni, swap, slippage o variazioni di prezzo. Forex: contratto standard 100.000 unità per lotto; pip 0,0001 (0,01 per coppie con JPY). Per le coppie con valuta quotata diversa da EUR è necessario un cambio verso EUR. Per CFD su indici e materie prime occorre inserire il valore punto riportato nelle specifiche del proprio strumento.</p>
+<div class="footer">GOLDPULSE FOREX CALCULATOR · VERSIONE 1.0</div>
+</main>
+<script>
+const pairs = `AUDCAD AUDCHF AUDJPY AUDNZD AUDSGD AUDUSD CADCHF CADJPY CHFJPY EURAUD EURCAD EURCHF EURGBP EURJPY EURNOK EURNZD EURPLN EURSEK EURSGD EURUSD GBPAUD GBPCAD GBPCHF GBPJPY GBPNZD GBPUSD NZDCAD NZDCHF NZDJPY NZDUSD USDCAD USDCHF USDCNH USDHKD USDJPY USDMXN USDNOK USDPLN USDSEK USDSGD USDZAR`.split(" ").sort();
+const instruments={
+ forex:pairs,
+ index:["BRAZIL 50","DOLLAR INDEX","EURO 50","FRANCE 40","GER40","ITALY 50","JAPAN 225","SPAIN 35","UK100","US 2000","USA500","USAIND","USATEC","VIX ST500"].sort(),
+ commodity:["BRENT","BRENT FUTURES","CARBON EMISSIONS FUTURES","COCOA","COCOA FUTURES","COFFEE","COFFEE FUTURES","COFFEE ROBUSTA","CORN FUTURES","COTTON","COTTON FUTURES","COPPER FUTURES","DIESEL","GASOLINE FUTURES","GOLD","NATURAL GAS","NATURAL GAS FUTURES","OATS FUTURES","ORANGE JUICE FUTURES","PALLADIUM","PLATINUM","SILVER","SOYBEAN MEAL FUTURES","SOYBEAN OIL FUTURES","SOYBEANS FUTURES","SUGAR","SUGAR FUTURES","WHEAT FUTURES","CRUDE OIL (WTI)","CRUDE OIL FUTURES (WTI)"].sort()
+};
+const $=id=>document.getElementById(id);let side="BUY",mode="auto",rates={EUR:1},rateReady=false;
+function num(v){if(v==null)return NaN;return Number(String(v).trim().replace(/\s/g,"").replace(",", "."))}
+function fmt(v,d=2){return Number.isFinite(v)?v.toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d}):"—"}
+function money(v){return Number.isFinite(v)?fmt(v,2)+" €":"—"}
+function selected(){return $("symbol").value}
+function setOptions(){const m=$("market").value,arr=instruments[m];$("symbol").innerHTML=arr.map(x=>'<option value="'+x+'">'+x+'</option>').join("");$("searchWrap").classList.toggle("hidden",m==="forex");$("cfdWrap").classList.toggle("hidden",m==="forex");$("conversionWrap").classList.toggle("hidden",m!=="forex");calculate()}
+function setSide(s){side=s;$("buy").classList.toggle("active",s==="BUY");$("sell").classList.toggle("active",s==="SELL");calculate()}
+function setMode(m){mode=m;$("auto").classList.toggle("active",m==="auto");$("manual").classList.toggle("active",m==="manual");$("manualWrap").classList.toggle("hidden",m!=="manual");calculate()}
+async function getRate(ccy){if(ccy==="EUR")return 1;try{const r=await fetch("https://api.frankfurter.dev/v1/latest?base="+ccy+"&symbols=EUR",{cache:"no-store"});if(!r.ok)throw 0;const j=await r.json();const x=Number(j.rates.EUR);if(x>0){rates[ccy]=x;rateReady=true;return x}}catch(e){}return NaN}
+function status(t,c=""){ $("status").textContent=t;$("status").className="status "+c}
+function resetOut(){["outLot","outLoss","outProfit","outRisk","outRR","outMargin"].forEach(id=>$(id).textContent="—")}
+async function calculate(){
+const m=$("market").value,s=selected(),balance=num($("balance").value),risk=num($("risk").value),entry=num($("entry").value),sl=num($("sl").value),tp=num($("tp").value);
+if(!(balance>0)||!(risk>0)||risk>100){resetOut();status("Controlla saldo e rischio: devono essere valori positivi; il rischio non può superare il 100%.","warn");return}
+if(!Number.isFinite(entry)||!Number.isFinite(sl)||!Number.isFinite(tp)){resetOut();status("Inserisci ingresso, Stop Loss e Take Profit.");return}
+const valid=side==="BUY"?(sl<entry&&tp>entry):(sl>entry&&tp<entry);
+if(!valid){resetOut();status("Livelli non coerenti con "+side+": verifica che SL e TP siano dal lato corretto dell'ingresso.","warn");return}
+let lossPerLot,profitPerLot,marginPerLot=NaN,conversion=1,unit="pip";
+if(m==="forex"){
+ const quote=s.slice(3);conversion=quote==="EUR"?1:num($("conversion").value);
+ if(quote!=="EUR"&&!(conversion>0)){conversion=await getRate(quote);if(conversion>0)$("conversion").value=String(conversion).replace(".",",")}
+ if(!(conversion>0)){resetOut();status("Cambio "+quote+" → EUR non disponibile. Inserisci manualmente il cambio nel campo dedicato.","warn");return}
+ const pip=s.endsWith("JPY")?.01:.0001;
+ const slPips=Math.abs(entry-sl)/pip,tpPips=Math.abs(tp-entry)/pip;
+ lossPerLot=slPips*(s.endsWith("JPY")?1000:10)*conversion;
+ profitPerLot=tpPips*(s.endsWith("JPY")?1000:10)*conversion;
+ // margin estimate: notional in base currency converted to EUR; direct FX conversion via API where possible
+ let baseRate=s.slice(0,3)==="EUR"?1:await getRate(s.slice(0,3));
+ marginPerLot=baseRate>0?100000*entry*baseRate/30:NaN;
+ unit="pip";
+}else{
+ const pv=num($("pointValue").value);if(!(pv>0)){resetOut();status("Per questo CFD inserisci il valore monetario di 1 punto per 1 lotto, dalle specifiche ActivTrades.","warn");return}
+ lossPerLot=Math.abs(entry-sl)*pv;profitPerLot=Math.abs(tp-entry)*pv;marginPerLot=NaN;unit="punti";
+}
+const target=balance*risk/100;let lot=mode==="auto"?Math.floor((target/lossPerLot)*100)/100:num($("customLot").value);
+if(!(lot>0)){resetOut();status("Impossibile calcolare un lotto valido. Verifica i parametri.","warn");return}
+if(mode==="auto"&&lot<.01)lot=.01;
+if(mode==="manual"&&lot<.01){resetOut();status("Il lotto minimo consentito dal calcolatore è 0,01.","warn");return}
+lot=Math.floor(lot*100)/100;
+const loss=lossPerLot*lot,profit=profitPerLot*lot,actual=loss/balance*100,rr=profit/loss;
+$("outLot").textContent=fmt(lot,2);$("outLoss").textContent=money(loss);$("outProfit").textContent=money(profit);$("outRisk").textContent=fmt(actual,2)+"%";$("outRR").textContent="1 : "+fmt(rr,2);$("outMargin").textContent=Number.isFinite(marginPerLot)?money(marginPerLot*lot):"N/D";
+if(mode==="auto"&&loss>target+.005)status("Attenzione: il lotto minimo 0,01 supera il rischio desiderato. Rischio effettivo "+fmt(actual,2)+"%.","warn");
+else if(mode==="manual"&&loss>target+.005)status("Attenzione: il lotto personalizzato supera il rischio impostato ("+fmt(actual,2)+"% effettivo).","warn");
+else status("Calcolo aggiornato. Stime indicative: spread, commissioni e slippage esclusi.","ok");
+}
+$("market").addEventListener("change",setOptions);$("buy").onclick=()=>setSide("BUY");$("sell").onclick=()=>setSide("SELL");$("auto").onclick=()=>setMode("auto");$("manual").onclick=()=>setMode("manual");
+["balance","risk","entry","sl","tp","customLot","conversion","pointValue"].forEach(id=>$(id).addEventListener("input",()=>{clearTimeout(window.calcTimer);window.calcTimer=setTimeout(calculate,160)}));
+$("symbol").addEventListener("change",calculate);
+$("search").addEventListener("input",()=>{const q=$("search").value.toUpperCase();const arr=instruments[$("market").value].filter(x=>x.includes(q));$("symbol").innerHTML=arr.map(x=>'<option>'+x+'</option>').join("");calculate()});
+setOptions();
+</script></body></html>
