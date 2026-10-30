@@ -13,6 +13,8 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--gold
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{min-width:0}.field.full{grid-column:1/-1}label{display:block;color:var(--muted);font-size:12px;margin:0 0 6px}
 input,select{width:100%;min-width:0;background:#0c1520;border:1px solid #34465b;border-radius:11px;padding:13px 11px;color:var(--text);font:inherit;outline:none}input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 2px #e6b84f22}
 .segment{display:flex;gap:8px}.segment button{flex:1;border:1px solid var(--line);border-radius:10px;background:#0c1520;color:var(--muted);padding:11px;font-weight:700}.segment button.active{background:#3a301d;border-color:var(--gold);color:var(--gold)}
+#buy,#sell{min-height:48px;font-size:16px;letter-spacing:.06em;transition:background .15s,border-color .15s,color .15s}#buy.active{background:#0e493b;border:2px solid #35c49a;color:#8ff0d0;box-shadow:0 0 0 2px #35c49a22}#sell.active{background:#54272d;border:2px solid #f07878;color:#ffc0c0;box-shadow:0 0 0 2px #f0787822}
+.lot-hero{grid-column:1/-1;background:linear-gradient(130deg,#3b301b,#201b13);border:1px solid #b98c35;border-radius:16px;padding:17px 16px;text-align:center}.lot-hero small{display:block;color:#e9c879;font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}.lot-hero strong{display:block;color:#ffda78;font-size:clamp(38px,12vw,54px);line-height:1.1;font-weight:850;font-variant-numeric:tabular-nums}.lot-hero span{display:block;color:#cbb98f;font-size:11px;margin-top:6px}.results{grid-template-columns:1fr 1fr}.results .metric{min-width:0}.results .metric strong{overflow-wrap:anywhere}
 .hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.45}
 .results{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#0c1520;border:1px solid var(--line);border-radius:13px;padding:13px}.metric small{display:block;color:var(--muted);font-size:11px;margin-bottom:7px}.metric strong{font-size:21px;font-variant-numeric:tabular-nums}.metric.gold strong{color:var(--gold)}.metric.loss strong{color:var(--red)}.metric.profit strong{color:var(--green)}
 .status{padding:11px 12px;border-radius:11px;background:#182737;color:var(--muted);font-size:12px;line-height:1.45;margin-top:12px}.status.warn{background:#3a2024;color:#ffc0c0}.status.ok{background:#12342f;color:#a7f0d9}
@@ -41,7 +43,7 @@ input,select{width:100%;min-width:0;background:#0c1520;border:1px solid #34465b;
 <div class="field full hidden" id="cfdWrap"><label>Valore monetario di 1 punto per 1 lotto (€)</label><input id="pointValue" inputmode="decimal" placeholder="Inserisci il valore indicato nelle specifiche ActivTrades"><div class="hint">Per indici e materie prime il valore del punto dipende dal singolo CFD e dal tipo di contratto: non viene inventato.</div></div>
 </div><div class="hint">Leva impostata nel calcolatore: <b>1:30</b>. È un'ipotesi di calcolo e non garantisce che coincida con la leva applicata al tuo conto ActivTrades.</div></section>
 <section class="card"><h2>4 · Risultati</h2><div class="results">
-<div class="metric gold"><small>Lotto calcolato</small><strong id="outLot">—</strong></div>
+<div class="lot-hero"><small>Lotto da utilizzare</small><strong id="outLot">—</strong><span id="lotMode">In attesa dei parametri</span></div>
 <div class="metric loss"><small>Perdita stimata allo SL</small><strong id="outLoss">—</strong></div>
 <div class="metric profit"><small>Profitto stimato al TP</small><strong id="outProfit">—</strong></div>
 <div class="metric"><small>Rischio effettivo</small><strong id="outRisk">—</strong></div>
@@ -68,8 +70,10 @@ function setSide(s){side=s;$("buy").classList.toggle("active",s==="BUY");$("sell
 function setMode(m){mode=m;$("auto").classList.toggle("active",m==="auto");$("manual").classList.toggle("active",m==="manual");$("manualWrap").classList.toggle("hidden",m!=="manual");calculate()}
 async function getRate(ccy){if(ccy==="EUR")return 1;try{const r=await fetch("https://api.frankfurter.dev/v1/latest?base="+ccy+"&symbols=EUR",{cache:"no-store"});if(!r.ok)throw 0;const j=await r.json();const x=Number(j.rates.EUR);if(x>0){rates[ccy]=x;rateReady=true;return x}}catch(e){}return NaN}
 function status(t,c=""){ $("status").textContent=t;$("status").className="status "+c}
-function resetOut(){["outLot","outLoss","outProfit","outRisk","outRR","outMargin"].forEach(id=>$(id).textContent="—")}
+function resetOut(){["outLot","outLoss","outProfit","outRisk","outRR","outMargin"].forEach(id=>$(id).textContent="—");$("lotMode").textContent="In attesa dei parametri"}
+let calcSequence=0;
 async function calculate(){
+const sequence=++calcSequence;
 const m=$("market").value,s=selected(),balance=num($("balance").value),risk=num($("risk").value),entry=num($("entry").value),sl=num($("sl").value),tp=num($("tp").value);
 if(!(balance>0)||!(risk>0)||risk>100){resetOut();status("Controlla saldo e rischio: devono essere valori positivi; il rischio non può superare il 100%.","warn");return}
 if(!Number.isFinite(entry)||!Number.isFinite(sl)||!Number.isFinite(tp)){resetOut();status("Inserisci ingresso, Stop Loss e Take Profit.");return}
@@ -79,7 +83,7 @@ let lossPerLot,profitPerLot,marginPerLot=NaN,conversion=1,unit="pip";
 if(m==="forex"){
  const quote=s.slice(3);conversion=quote==="EUR"?1:num($("conversion").value);
  if(quote!=="EUR"&&!(conversion>0)){conversion=await getRate(quote);if(conversion>0)$("conversion").value=String(conversion).replace(".",",")}
- if(!(conversion>0)){resetOut();status("Cambio "+quote+" → EUR non disponibile. Inserisci manualmente il cambio nel campo dedicato.","warn");return}
+ if(!(conversion>0)){if(sequence!==calcSequence)return;resetOut();$("lotMode").textContent="Completa i dati";status("Cambio "+quote+" → EUR non disponibile. Inserisci manualmente il cambio nel campo dedicato.","warn");return}
  const pip=s.endsWith("JPY")?.01:.0001;
  const slPips=Math.abs(entry-sl)/pip,tpPips=Math.abs(tp-entry)/pip;
  lossPerLot=slPips*(s.endsWith("JPY")?1000:10)*conversion;
@@ -89,22 +93,23 @@ if(m==="forex"){
  marginPerLot=baseRate>0?100000*baseRate/30:NaN;
  unit="pip";
 }else{
- const pv=num($("pointValue").value);if(!(pv>0)){resetOut();status("Per questo CFD inserisci il valore monetario di 1 punto per 1 lotto, dalle specifiche ActivTrades.","warn");return}
+ const pv=num($("pointValue").value);if(!(pv>0)){if(sequence!==calcSequence)return;resetOut();$("lotMode").textContent="Completa i dati";status("Per questo CFD inserisci il valore monetario di 1 punto per 1 lotto, dalle specifiche ActivTrades.","warn");return}
  lossPerLot=Math.abs(entry-sl)*pv;profitPerLot=Math.abs(tp-entry)*pv;marginPerLot=NaN;unit="punti";
 }
+if(sequence!==calcSequence)return;
 const target=balance*risk/100;let lot=mode==="auto"?Math.floor((target/lossPerLot)*100)/100:num($("customLot").value);
 if(!(lot>0)){resetOut();status("Impossibile calcolare un lotto valido. Verifica i parametri.","warn");return}
 if(mode==="auto"&&lot<.01)lot=.01;
 if(mode==="manual"&&lot<.01){resetOut();status("Il lotto minimo consentito dal calcolatore è 0,01.","warn");return}
 lot=Math.floor(lot*100)/100;
 const loss=lossPerLot*lot,profit=profitPerLot*lot,actual=loss/balance*100,rr=profit/loss;
-$("outLot").textContent=fmt(lot,2);$("outLoss").textContent=money(loss);$("outProfit").textContent=money(profit);$("outRisk").textContent=fmt(actual,2)+"%";$("outRR").textContent="1 : "+fmt(rr,2);$("outMargin").textContent=Number.isFinite(marginPerLot)?money(marginPerLot*lot):"N/D";
+$("outLot").textContent=fmt(lot,2);$("lotMode").textContent=(mode==="auto"?"Lotto automatico":"Lotto personalizzato")+" · "+side;$("outLoss").textContent=money(loss);$("outProfit").textContent=money(profit);$("outRisk").textContent=fmt(actual,2)+"%";$("outRR").textContent="1 : "+fmt(rr,2);$("outMargin").textContent=Number.isFinite(marginPerLot)?money(marginPerLot*lot):"N/D";
 if(mode==="auto"&&loss>target+.005)status("Attenzione: il lotto minimo 0,01 supera il rischio desiderato. Rischio effettivo "+fmt(actual,2)+"%.","warn");
 else if(mode==="manual"&&loss>target+.005)status("Attenzione: il lotto personalizzato supera il rischio impostato ("+fmt(actual,2)+"% effettivo).","warn");
 else status("Calcolo aggiornato. Stime indicative: spread, commissioni e slippage esclusi.","ok");
 }
 $("market").addEventListener("change",setOptions);$("buy").onclick=()=>setSide("BUY");$("sell").onclick=()=>setSide("SELL");$("auto").onclick=()=>setMode("auto");$("manual").onclick=()=>setMode("manual");
-["balance","risk","entry","sl","tp","customLot","conversion","pointValue"].forEach(id=>$(id).addEventListener("input",()=>{clearTimeout(window.calcTimer);window.calcTimer=setTimeout(calculate,160)}));
+["balance","risk","entry","sl","tp","customLot","conversion","pointValue"].forEach(id=>{ $(id).addEventListener("input",()=>{clearTimeout(window.calcTimer);window.calcTimer=setTimeout(calculate,120)}); $(id).addEventListener("change",calculate); });
 $("symbol").addEventListener("change",calculate);
 $("search").addEventListener("input",()=>{const q=$("search").value.toUpperCase();const arr=instruments[$("market").value].filter(x=>x.includes(q));$("symbol").innerHTML=arr.map(x=>'<option>'+x+'</option>').join("");calculate()});
 setOptions();
