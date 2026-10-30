@@ -15,7 +15,7 @@ input,select{width:100%;min-width:0;background:#0c1520;border:1px solid #34465b;
 .segment{display:flex;gap:8px}.segment button{flex:1;border:1px solid var(--line);border-radius:10px;background:#0c1520;color:var(--muted);padding:11px;font-weight:700}.segment button.active{background:#3a301d;border-color:var(--gold);color:var(--gold)}
 #buy,#sell{min-height:48px;font-size:16px;letter-spacing:.06em;transition:background .15s,border-color .15s,color .15s}#buy.active{background:#0e493b;border:2px solid #35c49a;color:#8ff0d0;box-shadow:0 0 0 2px #35c49a22}#sell.active{background:#54272d;border:2px solid #f07878;color:#ffc0c0;box-shadow:0 0 0 2px #f0787822}
 .lot-hero{grid-column:1/-1;background:linear-gradient(130deg,#3b301b,#201b13);border:1px solid #b98c35;border-radius:16px;padding:17px 16px;text-align:center}.lot-hero small{display:block;color:#e9c879;font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}.lot-hero strong{display:block;color:#ffda78;font-size:clamp(38px,12vw,54px);line-height:1.1;font-weight:850;font-variant-numeric:tabular-nums}.lot-hero span{display:block;color:#cbb98f;font-size:11px;margin-top:6px}.results{grid-template-columns:1fr 1fr}.results .metric{min-width:0}.results .metric strong{overflow-wrap:anywhere}
-.hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.45}
+.hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.45}.calc-btn{width:100%;margin-top:13px;padding:14px;border:1px solid #c69b43;border-radius:12px;background:linear-gradient(135deg,#e6b84f,#a87922);color:#17130b;font-size:15px;font-weight:850;letter-spacing:.04em}
 .results{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#0c1520;border:1px solid var(--line);border-radius:13px;padding:13px}.metric small{display:block;color:var(--muted);font-size:11px;margin-bottom:7px}.metric strong{font-size:21px;font-variant-numeric:tabular-nums}.metric.gold strong{color:var(--gold)}.metric.loss strong{color:var(--red)}.metric.profit strong{color:var(--green)}
 .status{padding:11px 12px;border-radius:11px;background:#182737;color:var(--muted);font-size:12px;line-height:1.45;margin-top:12px}.status.warn{background:#3a2024;color:#ffc0c0}.status.ok{background:#12342f;color:#a7f0d9}
 .hidden{display:none!important}.note{font-size:11px;line-height:1.5;color:var(--muted);margin:14px 3px}.footer{text-align:center;color:#758395;font-size:11px;margin-top:20px}
@@ -36,7 +36,7 @@ input,select{width:100%;min-width:0;background:#0c1520;border:1px solid #34465b;
 <div class="field"><label>Prezzo ingresso</label><input id="entry" inputmode="decimal" placeholder="Es. 1,08500"></div>
 <div class="field"><label>Stop Loss</label><input id="sl" inputmode="decimal" placeholder="Prezzo SL"></div>
 <div class="field"><label>Take Profit</label><input id="tp" inputmode="decimal" placeholder="Prezzo TP"></div>
-</div><div class="hint">Usa i prezzi esatti mostrati dalla tua piattaforma. Il calcolo si aggiorna mentre inserisci i dati.</div></section>
+</div><div class="hint">Usa i prezzi esatti mostrati dalla tua piattaforma. Premi il pulsante per aggiornare il calcolo; l’aggiornamento automatico resta attivo.</div><button type="button" class="calc-btn" id="calcNow">CALCOLA / AGGIORNA RISULTATI</button></section>
 <section class="card"><h2>3 · Dimensione posizione</h2><div class="segment"><button type="button" id="auto" class="active">Lotto automatico</button><button type="button" id="manual">Lotto personalizzato</button></div>
 <div class="grid" style="margin-top:12px"><div class="field full hidden" id="manualWrap"><label>Inserisci lotto (minimo 0,01)</label><input id="customLot" inputmode="decimal" value="0,01"></div>
 <div class="field full hidden" id="conversionWrap"><label>Conversione valuta quotata → EUR</label><input id="conversion" inputmode="decimal" placeholder="Cambio aggiornato automaticamente"><div class="hint">Se il cambio automatico non è disponibile, inserisci qui il valore di 1 unità della valuta quotata espresso in EUR.</div></div>
@@ -97,18 +97,27 @@ if(m==="forex"){
  lossPerLot=Math.abs(entry-sl)*pv;profitPerLot=Math.abs(tp-entry)*pv;marginPerLot=NaN;unit="punti";
 }
 if(sequence!==calcSequence)return;
-const target=balance*risk/100;let lot=mode==="auto"?Math.floor((target/lossPerLot)*100)/100:num($("customLot").value);
+const target=balance*risk/100;
+let requestedLot=mode==="auto"?Math.floor((target/lossPerLot)*100)/100:num($("customLot").value);
+let maxLot=Infinity;
+if(m==="forex"){
+ if(!(marginPerLot>0)){resetOut();status("Non riesco a verificare il margine con la conversione della valuta base. Riprova tra poco o controlla il cambio.","warn");return}
+ maxLot=Math.floor((balance/marginPerLot)*100)/100;
+ if(maxLot<.01){resetOut();status("Con saldo e leva 1:30 il margine disponibile non consente neppure il lotto minimo 0,01.","warn");return}
+}
+let lot=Math.min(requestedLot,maxLot);
 if(!(lot>0)){resetOut();status("Impossibile calcolare un lotto valido. Verifica i parametri.","warn");return}
 if(mode==="auto"&&lot<.01)lot=.01;
 if(mode==="manual"&&lot<.01){resetOut();status("Il lotto minimo consentito dal calcolatore è 0,01.","warn");return}
 lot=Math.floor(lot*100)/100;
 const loss=lossPerLot*lot,profit=profitPerLot*lot,actual=loss/balance*100,rr=profit/loss;
 $("outLot").textContent=fmt(lot,2);$("lotMode").textContent=(mode==="auto"?"Lotto automatico":"Lotto personalizzato")+" · "+side;$("outLoss").textContent=money(loss);$("outProfit").textContent=money(profit);$("outRisk").textContent=fmt(actual,2)+"%";$("outRR").textContent="1 : "+fmt(rr,2);$("outMargin").textContent=Number.isFinite(marginPerLot)?money(marginPerLot*lot):"N/D";
-if(mode==="auto"&&loss>target+.005)status("Attenzione: il lotto minimo 0,01 supera il rischio desiderato. Rischio effettivo "+fmt(actual,2)+"%.","warn");
+if(lot<requestedLot-.000001)status("Lotto ridotto da "+fmt(requestedLot,2)+" a "+fmt(lot,2)+": con saldo "+money(balance)+" e leva 1:30 il margine stimato non permette una posizione più grande. Margine richiesto: "+money(marginPerLot*lot)+".","warn");
+else if(mode==="auto"&&loss>target+.005)status("Attenzione: il lotto minimo 0,01 supera il rischio desiderato. Rischio effettivo "+fmt(actual,2)+"%.","warn");
 else if(mode==="manual"&&loss>target+.005)status("Attenzione: il lotto personalizzato supera il rischio impostato ("+fmt(actual,2)+"% effettivo).","warn");
-else status("Calcolo aggiornato. Stime indicative: spread, commissioni e slippage esclusi.","ok");
+else status("Calcolo aggiornato. Margine stimato con leva 1:30. Spread, commissioni e slippage esclusi.","ok");
 }
-$("market").addEventListener("change",setOptions);$("buy").onclick=()=>setSide("BUY");$("sell").onclick=()=>setSide("SELL");$("auto").onclick=()=>setMode("auto");$("manual").onclick=()=>setMode("manual");
+$("market").addEventListener("change",setOptions);$("calcNow").addEventListener("click",calculate);$("buy").onclick=()=>setSide("BUY");$("sell").onclick=()=>setSide("SELL");$("auto").onclick=()=>setMode("auto");$("manual").onclick=()=>setMode("manual");
 ["balance","risk","entry","sl","tp","customLot","conversion","pointValue"].forEach(id=>{ $(id).addEventListener("input",()=>{clearTimeout(window.calcTimer);window.calcTimer=setTimeout(calculate,120)}); $(id).addEventListener("change",calculate); });
 $("symbol").addEventListener("change",calculate);
 $("search").addEventListener("input",()=>{const q=$("search").value.toUpperCase();const arr=instruments[$("market").value].filter(x=>x.includes(q));$("symbol").innerHTML=arr.map(x=>'<option>'+x+'</option>').join("");calculate()});
