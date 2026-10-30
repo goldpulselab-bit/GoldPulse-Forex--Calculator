@@ -61,7 +61,7 @@ const instruments={
  commodity:["BRENT","BRENT FUTURES","CARBON EMISSIONS FUTURES","COCOA","COCOA FUTURES","COFFEE","COFFEE FUTURES","COFFEE ROBUSTA","CORN FUTURES","COTTON","COTTON FUTURES","COPPER FUTURES","DIESEL","GASOLINE FUTURES","GOLD","NATURAL GAS","NATURAL GAS FUTURES","OATS FUTURES","ORANGE JUICE FUTURES","PALLADIUM","PLATINUM","SILVER","SOYBEAN MEAL FUTURES","SOYBEAN OIL FUTURES","SOYBEANS FUTURES","SUGAR","SUGAR FUTURES","WHEAT FUTURES","CRUDE OIL (WTI)","CRUDE OIL FUTURES (WTI)"].sort()
 };
 const $=id=>document.getElementById(id);let side="BUY",mode="auto",rates={EUR:1},rateReady=false;
-function num(v){if(v==null)return NaN;return Number(String(v).trim().replace(/\s/g,"").replace(",", "."))}
+function num(v){if(v==null)return NaN;const x=String(v).trim().replace(/[\s\u00a0]/g,"").replace(",", ".").replace(/[^0-9eE+.-]/g,"");return x===""?NaN:Number(x)}
 function fmt(v,d=2){return Number.isFinite(v)?v.toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d}):"—"}
 function money(v){return Number.isFinite(v)?fmt(v,2)+" €":"—"}
 function selected(){return $("symbol").value}
@@ -78,7 +78,7 @@ const m=$("market").value,s=selected(),balance=num($("balance").value),risk=num(
 if(!(balance>0)||!(risk>0)||risk>100){resetOut();status("Controlla saldo e rischio: devono essere valori positivi; il rischio non può superare il 100%.","warn");return}
 if(!Number.isFinite(entry)||!Number.isFinite(sl)||!Number.isFinite(tp)){resetOut();status("Inserisci ingresso, Stop Loss e Take Profit.");return}
 const valid=side==="BUY"?(sl<entry&&tp>entry):(sl>entry&&tp<entry);
-if(!valid){resetOut();status("Livelli non coerenti con "+side+": verifica che SL e TP siano dal lato corretto dell'ingresso.","warn");return}
+if(!valid){resetOut();status("Valori letti dall’app: ingresso "+entry+" · SL "+sl+" · TP "+tp+" · direzione "+side+". Per BUY serve SL < ingresso < TP; per SELL serve TP < ingresso < SL. Controlla anche la direzione selezionata.","warn");return}
 let lossPerLot,profitPerLot,marginPerLot=NaN,conversion=1,unit="pip";
 if(m==="forex"){
  const quote=s.slice(3);conversion=quote==="EUR"?1:num($("conversion").value);
