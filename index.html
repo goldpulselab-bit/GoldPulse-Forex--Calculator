@@ -98,7 +98,8 @@ if(m==="forex"){
 }
 if(sequence!==calcSequence)return;
 const target=balance*risk/100;
-let requestedLot=mode==="auto"?Math.floor((target/lossPerLot)*100)/100:num($("customLot").value);
+const rawAutoLot=target/lossPerLot;
+let requestedLot=mode==="auto"?(Number.isFinite(rawAutoLot)?Math.max(.01,Math.floor((rawAutoLot+1e-9)*100)/100):NaN):num($("customLot").value);
 let maxLot=Infinity;
 if(m==="forex"){
  if(!(marginPerLot>0)){resetOut();status("Non riesco a verificare il margine con la conversione della valuta base. Riprova tra poco o controlla il cambio.","warn");return}
@@ -107,9 +108,9 @@ if(m==="forex"){
 }
 let lot=Math.min(requestedLot,maxLot);
 if(!(lot>0)){resetOut();status("Impossibile calcolare un lotto valido. Verifica i parametri.","warn");return}
-if(mode==="auto"&&lot<.01)lot=.01;
 if(mode==="manual"&&lot<.01){resetOut();status("Il lotto minimo consentito dal calcolatore è 0,01.","warn");return}
-lot=Math.floor(lot*100)/100;
+lot=Math.floor((lot+1e-9)*100)/100;
+if(!(lot>=.01)){resetOut();status("Il lotto consentito dal margine è inferiore al minimo di 0,01. Aumenta il saldo o riduci l'esposizione.","warn");return}
 const loss=lossPerLot*lot,profit=profitPerLot*lot,actual=loss/balance*100,rr=profit/loss;
 $("outLot").textContent=fmt(lot,2);$("lotMode").textContent=(mode==="auto"?"Lotto automatico":"Lotto personalizzato")+" · "+side;$("outLoss").textContent=money(loss);$("outProfit").textContent=money(profit);$("outRisk").textContent=fmt(actual,2)+"%";$("outRR").textContent="1 : "+fmt(rr,2);$("outMargin").textContent=Number.isFinite(marginPerLot)?money(marginPerLot*lot):"N/D";
 if(lot<requestedLot-.000001)status("Lotto ridotto da "+fmt(requestedLot,2)+" a "+fmt(lot,2)+": con saldo "+money(balance)+" e leva 1:30 il margine stimato non permette una posizione più grande. Margine richiesto: "+money(marginPerLot*lot)+".","warn");
