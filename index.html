@@ -25,7 +25,7 @@ input,select{width:100%;min-width:0;background:#0c1520;border:1px solid #34465b;
 <section class="card"><h2>1 · Strumento</h2><div class="grid">
 <div class="field"><label>Mercato</label><select id="market"><option value="forex">Forex</option><option value="index">Indici</option><option value="commodity">Materie prime</option></select></div>
 <div class="field"><label>Strumento</label><select id="symbol"></select></div>
-<div class="field full hidden" id="searchWrap"><label>Cerca strumento</label><input id="search" placeholder="Scrivi per filtrare…"></div>
+<div class="field full" id="searchWrap"><label>Cerca strumento</label><input id="search" placeholder="Scrivi per filtrare…"></div>
 <div class="field full"><label>Direzione</label><div class="segment"><button type="button" id="buy" class="active">BUY</button><button type="button" id="sell">SELL</button></div></div>
 </div></section>
 <section class="card"><h2>2 · Parametri conto e trade</h2><div class="grid">
@@ -63,7 +63,7 @@ function num(v){if(v==null)return NaN;return Number(String(v).trim().replace(/\s
 function fmt(v,d=2){return Number.isFinite(v)?v.toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d}):"—"}
 function money(v){return Number.isFinite(v)?fmt(v,2)+" €":"—"}
 function selected(){return $("symbol").value}
-function setOptions(){const m=$("market").value,arr=instruments[m];$("symbol").innerHTML=arr.map(x=>'<option value="'+x+'">'+x+'</option>').join("");$("searchWrap").classList.toggle("hidden",m==="forex");$("cfdWrap").classList.toggle("hidden",m==="forex");$("conversionWrap").classList.toggle("hidden",m!=="forex");calculate()}
+function setOptions(){const m=$("market").value,arr=instruments[m];$("symbol").innerHTML=arr.map(x=>'<option value="'+x+'">'+x+'</option>').join("");$("searchWrap").classList.remove("hidden");$("cfdWrap").classList.toggle("hidden",m==="forex");$("conversionWrap").classList.toggle("hidden",m!=="forex");calculate()}
 function setSide(s){side=s;$("buy").classList.toggle("active",s==="BUY");$("sell").classList.toggle("active",s==="SELL");calculate()}
 function setMode(m){mode=m;$("auto").classList.toggle("active",m==="auto");$("manual").classList.toggle("active",m==="manual");$("manualWrap").classList.toggle("hidden",m!=="manual");calculate()}
 async function getRate(ccy){if(ccy==="EUR")return 1;try{const r=await fetch("https://api.frankfurter.dev/v1/latest?base="+ccy+"&symbols=EUR",{cache:"no-store"});if(!r.ok)throw 0;const j=await r.json();const x=Number(j.rates.EUR);if(x>0){rates[ccy]=x;rateReady=true;return x}}catch(e){}return NaN}
@@ -86,7 +86,7 @@ if(m==="forex"){
  profitPerLot=tpPips*(s.endsWith("JPY")?1000:10)*conversion;
  // margin estimate: notional in base currency converted to EUR; direct FX conversion via API where possible
  let baseRate=s.slice(0,3)==="EUR"?1:await getRate(s.slice(0,3));
- marginPerLot=baseRate>0?100000*entry*baseRate/30:NaN;
+ marginPerLot=baseRate>0?100000*baseRate/30:NaN;
  unit="pip";
 }else{
  const pv=num($("pointValue").value);if(!(pv>0)){resetOut();status("Per questo CFD inserisci il valore monetario di 1 punto per 1 lotto, dalle specifiche ActivTrades.","warn");return}
