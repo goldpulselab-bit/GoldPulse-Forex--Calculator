@@ -39,9 +39,9 @@ input,select{width:100%;min-width:0;background:#0c1520;border:1px solid #34465b;
 </div><div class="hint">Usa i prezzi esatti mostrati dalla tua piattaforma. Premi il pulsante per aggiornare il calcolo; l’aggiornamento automatico resta attivo.</div><button type="button" class="calc-btn" id="calcNow">CALCOLA / AGGIORNA RISULTATI</button></section>
 <section class="card"><h2>3 · Dimensione posizione</h2><div class="segment"><button type="button" id="auto" class="active">Lotto automatico</button><button type="button" id="manual">Lotto personalizzato</button></div>
 <div class="grid" style="margin-top:12px"><div class="field full hidden" id="manualWrap"><label>Inserisci lotto (minimo 0,01)</label><input id="customLot" inputmode="decimal" value="0,01"></div>
-<div class="field full hidden" id="conversionWrap"><label>Conversione valuta quotata → EUR</label><input id="conversion" inputmode="decimal" placeholder="Cambio aggiornato automaticamente"><div class="hint">Se il cambio automatico non è disponibile, inserisci qui il valore di 1 unità della valuta quotata espresso in EUR.</div></div>
+<div class="field full hidden" id="conversionWrap"><label id="conversionLabel">Conversione valuta → EUR</label><input id="conversion" inputmode="decimal" placeholder="Cambio aggiornato automaticamente"><div class="hint" id="conversionHint">Inserisci il valore di 1 unità della valuta espresso in EUR se il cambio automatico non riesce.</div></div><div class="field full hidden" id="baseConversionWrap"><label id="baseConversionLabel">Conversione valuta base → EUR</label><input id="baseConversion" inputmode="decimal" placeholder="Cambio aggiornato automaticamente"><div class="hint">Serve per stimare il margine: inserisci il valore di 1 unità della valuta base espresso in EUR se il cambio automatico non è disponibile.</div></div>
 <div class="field full hidden" id="cfdWrap"><label>Valore monetario di 1 punto per 1 lotto (€)</label><input id="pointValue" inputmode="decimal" placeholder="Inserisci il valore indicato nelle specifiche ActivTrades"><div class="hint">Per indici e materie prime il valore del punto dipende dal singolo CFD e dal tipo di contratto: non viene inventato.</div></div>
-</div><div class="hint">Leva impostata nel calcolatore: <b>1:30</b>. È un'ipotesi di calcolo e non garantisce che coincida con la leva applicata al tuo conto ActivTrades.</div></section>
+</div><div class="hint" id="leverageHint">Leva di calcolo Forex: <b>1:30</b>. È una stima e non sostituisce il margine mostrato dalla piattaforma ActivTrades.</div></section>
 <section class="card"><h2>4 · Risultati</h2><div class="results">
 <div class="lot-hero"><small>Lotto da utilizzare</small><strong id="outLot">—</strong><span id="lotMode">In attesa dei parametri</span></div>
 <div class="metric loss"><small>Perdita stimata allo SL</small><strong id="outLoss">—</strong></div>
@@ -60,15 +60,15 @@ const instruments={
  index:["BRAZIL 50","DOLLAR INDEX","EURO 50","FRANCE 40","GER40","ITALY 50","JAPAN 225","SPAIN 35","UK100","US 2000","USA500","USAIND","USATEC","VIX ST500"].sort(),
  commodity:["BRENT","BRENT FUTURES","CARBON EMISSIONS FUTURES","COCOA","COCOA FUTURES","COFFEE","COFFEE FUTURES","COFFEE ROBUSTA","CORN FUTURES","COTTON","COTTON FUTURES","COPPER FUTURES","DIESEL","GASOLINE FUTURES","GOLD","NATURAL GAS","NATURAL GAS FUTURES","OATS FUTURES","ORANGE JUICE FUTURES","PALLADIUM","PLATINUM","SILVER","SOYBEAN MEAL FUTURES","SOYBEAN OIL FUTURES","SOYBEANS FUTURES","SUGAR","SUGAR FUTURES","WHEAT FUTURES","CRUDE OIL (WTI)","CRUDE OIL FUTURES (WTI)"].sort()
 };
-const $=id=>document.getElementById(id);let side="BUY",mode="auto",rates={EUR:1},rateReady=false;
+const $=id=>document.getElementById(id);let side="BUY",mode="auto",rates={EUR:1};
 function num(v){if(v==null)return NaN;const x=String(v).trim().replace(/[\s\u00a0]/g,"").replace(",", ".").replace(/[^0-9eE+.-]/g,"");return x===""?NaN:Number(x)}
 function fmt(v,d=2){return Number.isFinite(v)?v.toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d}):"—"}
 function money(v){return Number.isFinite(v)?fmt(v,2)+" €":"—"}
 function selected(){return $("symbol").value}
-function setOptions(){const m=$("market").value,arr=instruments[m];$("symbol").innerHTML=arr.map(x=>'<option value="'+x+'">'+x+'</option>').join("");$("searchWrap").classList.remove("hidden");$("cfdWrap").classList.toggle("hidden",m==="forex");$("conversionWrap").classList.toggle("hidden",m!=="forex");calculate()}
+function setOptions(){const m=$("market").value,arr=instruments[m];$("symbol").innerHTML=arr.map(x=>'<option value="'+x+'">'+x+'</option>').join("");$("searchWrap").classList.remove("hidden");$("cfdWrap").classList.toggle("hidden",m==="forex");$("conversionWrap").classList.toggle("hidden",m!=="forex"&&!(m==="commodity"&&selected()==="GOLD"));$("baseConversionWrap").classList.add("hidden");$("pointValue").parentElement.classList.toggle("hidden",m==="commodity"&&selected()==="GOLD");$("leverageHint").innerHTML=m==="forex"?'Leva di calcolo Forex: <b>1:30</b>. È una stima e non sostituisce il margine mostrato dalla piattaforma ActivTrades.':(m==="commodity"&&selected()==="GOLD"?'GOLD ActivTrades: margine indicativo <b>1:20</b> (5%) secondo la scheda ufficiale consultata.':'Per gli altri CFD il margine non viene stimato senza le specifiche del contratto.');calculate()}
 function setSide(s){side=s;$("buy").classList.toggle("active",s==="BUY");$("sell").classList.toggle("active",s==="SELL");calculate()}
 function setMode(m){mode=m;$("auto").classList.toggle("active",m==="auto");$("manual").classList.toggle("active",m==="manual");$("manualWrap").classList.toggle("hidden",m!=="manual");calculate()}
-async function getRate(ccy){if(ccy==="EUR")return 1;try{const r=await fetch("https://api.frankfurter.dev/v1/latest?base="+ccy+"&symbols=EUR",{cache:"no-store"});if(!r.ok)throw 0;const j=await r.json();const x=Number(j.rates.EUR);if(x>0){rates[ccy]=x;rateReady=true;return x}}catch(e){}return NaN}
+async function getRate(ccy){if(ccy==="EUR")return 1;if(Number.isFinite(rates[ccy])&&rates[ccy]>0)return rates[ccy];try{const r=await fetch("https://api.frankfurter.dev/v1/latest?base="+ccy+"&symbols=EUR",{cache:"no-store"});if(!r.ok)throw 0;const j=await r.json();const x=Number(j.rates.EUR);if(x>0){rates[ccy]=x;return x}}catch(e){}return NaN}
 function status(t,c=""){ $("status").textContent=t;$("status").className="status "+c}
 function resetOut(){["outLot","outLoss","outProfit","outRisk","outRR","outMargin"].forEach(id=>$(id).textContent="—");$("lotMode").textContent="In attesa dei parametri"}
 let calcSequence=0;
@@ -79,19 +79,28 @@ if(!(balance>0)||!(risk>0)||risk>100){resetOut();status("Controlla saldo e risch
 if(!Number.isFinite(entry)||!Number.isFinite(sl)||!Number.isFinite(tp)){resetOut();status("Inserisci ingresso, Stop Loss e Take Profit.");return}
 const valid=side==="BUY"?(sl<entry&&tp>entry):(sl>entry&&tp<entry);
 if(!valid){resetOut();status("Valori letti dall’app: ingresso "+entry+" · SL "+sl+" · TP "+tp+" · direzione "+side+". Per BUY serve SL < ingresso < TP; per SELL serve TP < ingresso < SL. Controlla anche la direzione selezionata.","warn");return}
-let lossPerLot,profitPerLot,marginPerLot=NaN,conversion=1,unit="pip";
+let lossPerLot,profitPerLot,marginPerLot=NaN,conversion=1,leverage=30;
 if(m==="forex"){
- const quote=s.slice(3);conversion=quote==="EUR"?1:num($("conversion").value);
+ const base=s.slice(0,3),quote=s.slice(3);
+ conversion=quote==="EUR"?1:num($("conversion").value);
  if(quote!=="EUR"&&!(conversion>0)){conversion=await getRate(quote);if(conversion>0)$("conversion").value=String(conversion).replace(".",",")}
- if(!(conversion>0)){if(sequence!==calcSequence)return;resetOut();$("lotMode").textContent="Completa i dati";status("Cambio "+quote+" → EUR non disponibile. Inserisci manualmente il cambio nel campo dedicato.","warn");return}
+ if(!(conversion>0)){if(sequence!==calcSequence)return;resetOut();$("lotMode").textContent="Completa i dati";status("Cambio della valuta quotata "+quote+" → EUR non disponibile. Inserisci manualmente il cambio nel campo dedicato.","warn");return}
  const pip=s.endsWith("JPY")?.01:.0001;
  const slPips=Math.abs(entry-sl)/pip,tpPips=Math.abs(tp-entry)/pip;
  lossPerLot=slPips*(s.endsWith("JPY")?1000:10)*conversion;
  profitPerLot=tpPips*(s.endsWith("JPY")?1000:10)*conversion;
- // margin estimate: notional in base currency converted to EUR; direct FX conversion via API where possible
- let baseRate=s.slice(0,3)==="EUR"?1:await getRate(s.slice(0,3));
- marginPerLot=baseRate>0?100000*baseRate/30:NaN;
- unit="pip";
+ let baseRate=base==="EUR"?1:num($("baseConversion").value);
+ if(base!=="EUR"&&!(baseRate>0)){baseRate=await getRate(base);if(baseRate>0)$("baseConversion").value=String(baseRate).replace(".",",")}
+ if(!(baseRate>0)){if(sequence!==calcSequence)return;resetOut();$("lotMode").textContent="Completa i dati";status("Cambio della valuta base "+base+" → EUR non disponibile. Inserisci manualmente il cambio nel campo dedicato.","warn");return}
+ marginPerLot=100000*baseRate/leverage;unit="pip";
+}else if(m==="commodity"&&s==="GOLD"){
+ leverage=20;conversion=num($("conversion").value);
+ if(!(conversion>0)){conversion=await getRate("USD");if(conversion>0)$("conversion").value=String(conversion).replace(".",",")}
+ if(!(conversion>0)){if(sequence!==calcSequence)return;resetOut();$("lotMode").textContent="Completa i dati";status("Cambio USD → EUR non disponibile. Inserisci manualmente il valore di 1 USD espresso in EUR.","warn");return}
+ const goldPointValueUSD=100;
+ lossPerLot=Math.abs(entry-sl)*goldPointValueUSD*conversion;
+ profitPerLot=Math.abs(tp-entry)*goldPointValueUSD*conversion;
+ marginPerLot=entry*100*conversion/leverage;unit="punti";
 }else{
  const pv=num($("pointValue").value);if(!(pv>0)){if(sequence!==calcSequence)return;resetOut();$("lotMode").textContent="Completa i dati";status("Per questo CFD inserisci il valore monetario di 1 punto per 1 lotto, dalle specifiche ActivTrades.","warn");return}
  lossPerLot=Math.abs(entry-sl)*pv;profitPerLot=Math.abs(tp-entry)*pv;marginPerLot=NaN;unit="punti";
@@ -101,8 +110,8 @@ const target=balance*risk/100;
 const rawAutoLot=target/lossPerLot;
 let requestedLot=mode==="auto"?(Number.isFinite(rawAutoLot)?Math.max(.01,Math.floor((rawAutoLot+1e-9)*100)/100):NaN):num($("customLot").value);
 let maxLot=Infinity;
-if(m==="forex"){
- if(!(marginPerLot>0)){resetOut();status("Non riesco a verificare il margine con la conversione della valuta base. Riprova tra poco o controlla il cambio.","warn");return}
+if(m==="forex"||(m==="commodity"&&s==="GOLD")){
+ if(!(marginPerLot>0)){resetOut();status("Non riesco a calcolare il margine stimato: verifica il cambio e i dati dello strumento.","warn");return}
  maxLot=Math.floor((balance/marginPerLot)*100)/100;
  if(maxLot<.01){resetOut();status("Con saldo e leva 1:30 il margine disponibile non consente neppure il lotto minimo 0,01.","warn");return}
 }
@@ -119,8 +128,8 @@ else if(mode==="manual"&&loss>target+.005)status("Attenzione: il lotto personali
 else status("Calcolo aggiornato. Margine stimato con leva 1:30. Spread, commissioni e slippage esclusi.","ok");
 }
 $("market").addEventListener("change",setOptions);$("calcNow").addEventListener("click",calculate);$("buy").onclick=()=>setSide("BUY");$("sell").onclick=()=>setSide("SELL");$("auto").onclick=()=>setMode("auto");$("manual").onclick=()=>setMode("manual");
-["balance","risk","entry","sl","tp","customLot","conversion","pointValue"].forEach(id=>{ $(id).addEventListener("input",()=>{clearTimeout(window.calcTimer);window.calcTimer=setTimeout(calculate,120)}); $(id).addEventListener("change",calculate); });
-$("symbol").addEventListener("change",calculate);
+["balance","risk","entry","sl","tp","customLot","conversion","baseConversion","pointValue"].forEach(id=>{ $(id).addEventListener("input",()=>{clearTimeout(window.calcTimer);window.calcTimer=setTimeout(calculate,120)}); $(id).addEventListener("change",calculate); });
+$("symbol").addEventListener("change",()=>{const m=$("market").value,s=selected();if(m==="forex"){const b=s.slice(0,3),q=s.slice(3);$("conversionLabel").textContent="Cambio "+q+" → EUR (valuta quotata)";$("conversionHint").textContent="Inserisci il valore di 1 "+q+" espresso in EUR se il recupero automatico non riesce.";$("baseConversionWrap").classList.toggle("hidden",b==="EUR");$("baseConversionLabel").textContent="Cambio "+b+" → EUR (valuta base)";}else if(m==="commodity"&&s==="GOLD"){$("conversionLabel").textContent="Cambio USD → EUR per GOLD";$("conversionHint").textContent="Inserisci il valore di 1 USD espresso in EUR se il recupero automatico non riesce.";} $("conversion").value="";$("baseConversion").value="";$("pointValue").parentElement.classList.toggle("hidden",m==="commodity"&&s==="GOLD");$("conversionWrap").classList.toggle("hidden",m!=="forex"&&!(m==="commodity"&&s==="GOLD"));$("leverageHint").innerHTML=m==="forex"?'Leva di calcolo Forex: <b>1:30</b>. Stima, non sostituisce il margine della piattaforma.':(m==="commodity"&&s==="GOLD"?'GOLD ActivTrades: margine indicativo <b>1:20</b> (5%) secondo la scheda ufficiale consultata.':'Per gli altri CFD il margine non viene stimato senza le specifiche del contratto.');calculate();});
 $("search").addEventListener("input",()=>{const q=$("search").value.toUpperCase();const arr=instruments[$("market").value].filter(x=>x.includes(q));$("symbol").innerHTML=arr.map(x=>'<option>'+x+'</option>').join("");calculate()});
 setOptions();
 </script></body></html>
